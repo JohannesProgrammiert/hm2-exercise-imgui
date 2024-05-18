@@ -1,8 +1,13 @@
 #include "ui.hpp"
+#include "cmyvektor.hpp"
+#include "functions.hpp"
+#include "imgui.h"
+#include "iteration.hpp"
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <implot.h>
 
+#include <sstream>
 #include <stdexcept>
 
 void GuiHandle::glfw_error_callback(int error, const char *description) {
@@ -62,4 +67,167 @@ GuiHandle::~GuiHandle() {
 
   glfwDestroyWindow(this->glfw_window);
   glfwTerminate();
+}
+
+auto GuiHandle::Update() -> bool {
+  /* Poll and handle events (inputs, window resize, etc.) */
+  glfwPollEvents();
+
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGui::NewFrame();
+
+  /* Finite state machine. */
+  CalcState next_state = this->state;
+
+  switch (this->state) {
+  case CalcState::Init:
+    if (ImGui::Button("Start Calculation")) {
+      next_state = CalcState::MidCalculation;
+    }
+    break;
+  case CalcState::MidCalculation:
+    ImGui::BeginDisabled();
+    if (ImGui::Button("Start Calculation")) {
+      /* nothing */
+    }
+    ImGui::EndDisabled();
+    break;
+  case CalcState::Done:
+    if (ImGui::Button("Reset")) {
+      next_state = CalcState::Init;
+    }
+    break;
+  }
+  static constexpr CMyVektor<2> START_F{0.2, -2.1};
+  static CMyVektor<2> start = START_F;
+  if (this->state != CalcState::Init) {
+    ImGui::BeginDisabled();
+  }
+  ImGui::DragScalar("Start x", ImGuiDataType_Double, &start[0]);
+  ImGui::DragScalar("Start y", ImGuiDataType_Double, &start[1]);
+  if (this->state != CalcState::Init) {
+    ImGui::EndDisabled();
+  }
+
+  static uint8_t iteration = 0;
+  if (this->state == CalcState::Init) {
+    iteration = 0;
+  }
+  if (this->state != CalcState::MidCalculation) {
+    ImGui::BeginDisabled();
+  }
+  static constexpr uint8_t IT_MIN = 0;
+  static constexpr uint8_t IT_MAX = 24;
+  ImGui::SliderScalar("Iteration step", ImGuiDataType_U8, &iteration, &IT_MIN,
+                      &IT_MAX);
+  if (this->state != CalcState::MidCalculation) {
+    ImGui::EndDisabled();
+  }
+  static constexpr double INIT_STEP_SIZE_F = 1.0;
+  static IterationData<2> iteration_data_init =
+      IterationData<2>::AtPoint(start, funktion_f, INIT_STEP_SIZE_F, 0);
+  if (this->state == CalcState::Init) {
+    iteration_data_init =
+        IterationData<2>::AtPoint(start, funktion_f, INIT_STEP_SIZE_F, 0);
+  }
+  IterationData<2> iteration_data = iteration_data_init;
+  if (this->state == CalcState::MidCalculation) {
+    for (std::size_t i = 0; i < iteration; i++) {
+      if (iteration_data.done()) {
+        next_state = CalcState::Done;
+        break;
+      }
+      iteration_data = IterationData<2>::Next(iteration_data);
+    }
+  }
+
+  if (this->state == CalcState::MidCalculation ||
+      this->state == CalcState::Done) {
+    std::stringstream ss;
+    ss << iteration_data;
+    std::string str = ss.str();
+    ImGui::Text("%s", str.c_str());
+  }
+
+  /* -- Make 2D visualization of funktion_f -- */
+
+  /* Heatmap subdivisions per dimension.. */
+  static constexpr std::size_t RESOLUTION = 64;
+
+  /* Heatmap size in x- and y-direction. */
+  static constexpr double HEATMAP_SIZE = 4.0;
+
+  /* Axis tick step size. */
+  static constexpr double TICK_SIZE =
+      HEATMAP_SIZE / static_cast<double>(RESOLUTION);
+
+  /* Start corner of heatmap. */
+  static constexpr double START[2] = {-HEATMAP_SIZE / 2.0, -HEATMAP_SIZE / 2.0};
+
+  /* Populate C array type. Actually, this is only needed once. */
+  double values[RESOLUTION][RESOLUTION];
+  for (std::size_t y = 0; y < RESOLUTION; y++) {
+    for (std::size_t x = 0; x < RESOLUTION; x++) {
+      const double x_coord = START[0] + static_cast<double>(x) * TICK_SIZE;
+      const double y_coord = START[1] + static_cast<double>(y) * TICK_SIZE;
+      /* No idea why but y must be inverted. For the heatmap to match the
+       * scatter plot. */
+      values[y][x] = funktion_f(CMyVektor<2>({x_coord, -y_coord}));
+    }
+  }
+
+  /* Find maximum and minimum value in heatmap. Used as boundaries for color
+   * mapping. */
+  double max = -INFINITY;
+  double min = INFINITY;
+  for (std::size_t i = 0; i < RESOLUTION * RESOLUTION; i++) {
+    /* A bit weird but we know 2-dimensional arrays are in contiguous memory. We
+     * can access all elements by the second index only. */
+    const double &current = values[0][i];
+    if (current > max) {
+      max = current;
+    }
+    if (current < min) {
+      min = current;
+    }
+  }
+
+  /* Populate plot points as C array types. */
+  const double opt_x[1] = {iteration_data.current.vector[0]};
+  const double opt_y[1] = {iteration_data.current.vector[1]};
+  const double next_x[1] = {iteration_data.next.vector[0]};
+  const double next_y[1] = {iteration_data.next.vector[1]};
+  const double test_x[1] = {iteration_data.test.vector[0]};
+  const double test_y[1] = {iteration_data.test.vector[1]};
+
+  ImPlot::PushColormap(ImPlotColormap_Viridis);
+  if (ImPlot::BeginPlot("Heatmap")) {
+    ImPlot::PlotHeatmap(
+        "f(x)", values[0], RESOLUTION, RESOLUTION, min, max, "%f",
+        ImPlotPoint(START[0], START[1]),
+        ImPlotPoint(START[0] + HEATMAP_SIZE, START[1] + HEATMAP_SIZE),
+        ImPlotHeatmapFlags_None);
+    ImPlot::PlotScatter("Optimum", opt_x, opt_y, 1);
+    ImPlot::PlotScatter("Next point", next_x, next_y, 1);
+    ImPlot::PlotScatter("Test point", test_x, test_y, 1);
+    ImPlot::EndPlot();
+  }
+
+  ImGui::Render();
+  int display_w, display_h;
+  glfwGetFramebufferSize(this->glfw_window, &display_w, &display_h);
+  glViewport(0, 0, display_w, display_h);
+
+  static constexpr ImVec4 CLEAR_COLOR = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+  glClearColor(CLEAR_COLOR.x * CLEAR_COLOR.w, CLEAR_COLOR.y * CLEAR_COLOR.w,
+               CLEAR_COLOR.z * CLEAR_COLOR.w, CLEAR_COLOR.w);
+
+  glClear(GL_COLOR_BUFFER_BIT);
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+  glfwSwapBuffers(this->glfw_window);
+  this->state = next_state;
+  return glfwWindowShouldClose(this->glfw_window);
 }

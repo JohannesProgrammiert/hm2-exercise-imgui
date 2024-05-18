@@ -1,28 +1,21 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #define GL_SILENCE_DEPRECATION
-#include "cmyvektor.hpp"
+#include "iteration.hpp"
 #include "ui.hpp"
-#include <cmath>
+#include "functions.hpp"
 #include <iostream>
-
-/** Task 3: f(x) */
-static auto funktion_f(CMyVektor<2> x) -> double;
-
-/** Task 3: g(x) */
-static auto funktion_g(CMyVektor<3> x) -> double;
 
 auto main() -> int {
 
   /* Calculate results from tasks. */
   static constexpr CMyVektor<2> START_F{0.2, -2.1};
-  const auto result_f = CMyVektor<2>::gradient_descent(START_F, funktion_f);
+  const CMyVektor<2> result_f = gradient_descent<2>(START_F, funktion_f);
   std::cout << result_f << std::endl;
 
   static constexpr double INIT_STEP_SIZE_G = 0.1;
   static constexpr CMyVektor<3> START_G{0.0, 0.0, 0.0};
-  const auto result_g =
-      CMyVektor<3>::gradient_descent(START_G, funktion_g, INIT_STEP_SIZE_G);
+  const CMyVektor<3> result_g = gradient_descent<3>(START_G, funktion_g, INIT_STEP_SIZE_G);
   std::cout << result_g << std::endl;
 
   /* ======== NON-MANDATORY PART
@@ -50,24 +43,10 @@ auto main() -> int {
   };
   /* Update and run Gui */
   while (true) {
-    if (gui.Update<RESOLUTION, TICK_SIZE>(values, start)) {
+    if (gui.Update()) {
       return 0;
     }
   }
   /* =======================================================================================
    */
-}
-
-static auto funktion_f(CMyVektor<2> x) -> double {
-  const auto &x_val = x[0];
-  const auto &y_val = x[1];
-  return std::sin(x_val * y_val) + std::sin(x_val) + std::cos(y_val);
-}
-
-static auto funktion_g(CMyVektor<3> x) -> double {
-  const auto &x1 = x[0];
-  const auto &x2 = x[1];
-  const auto &x3 = x[2];
-  return -(2.0 * std::pow(x1, 2) - 2.0 * x1 * x2 + std::pow(x2, 2) +
-           std::pow(x3, 2) - 2.0 * x1 - 4.0 * x3);
 }
