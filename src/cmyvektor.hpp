@@ -1,27 +1,41 @@
 #ifndef CMYVEKTOR_H_
 #define CMYVEKTOR_H_
+/**
+ * @file cmyvektor.hpp
+ *
+ * @brief Templated CMyVektor struct with all features requested by the
+ * exercise.
+ *
+ * There are three exercises. They cannot be uploaded because they are
+ * intellectual property of the TH Aachen.
+ *
+ * @author Johannes Schiffer
+ * @date 03-05-2024
+ */
 #include <array>
 #include <cmath>
 #include <iostream>
 
 /**
- * std::array with some special operations.
+ * `std::array` of `double`s with some extra operations required for gradient
+ * descent optimization.
  *
  * # Task 1
  *
  * - A vector of dimension n is constructed by calling the
- * std::array<T, N>() constructor, which is inherited using the 'using'
- * keyword. The template argument 'N' is the dimension.
+ * std::array<double, N>() constructor, which is inherited using the 'using'
+ * keyword. The template argument 'N' is the dimension. Example: `CMyVektor<2>
+ * vec2 = {0.0, 0.0};`
  * - The dimension is requested by std::array<T>::size(), which is inherited.
+ * Example: `vec2.size()`
  * - A component can be written by std::array<T>::at() or operator[] which are
- * inherited.
- * - A component can be read the same way.
+ * inherited. Example: `vec2.at(0)`, `vec2[0]`.
+ * - A component can be read the same way (at() or []).
  *
+ * @tparam N Dimension of the fixed-size vector.
  */
 template <std::size_t N> class CMyVektor : public std::array<double, N> {
-public:
-  /* Inherit all constructors of 'std::vector' */
-  using std::array<double, N>::operator[];
+private:
 
   /** Task 2: Make gradient vector from input vector with function pointer.
    *
@@ -51,22 +65,28 @@ public:
     return std::sqrt(arg);
   };
 
-  friend std::ostream &operator<<(std::ostream &stream, const CMyVektor<N> &x) {
-    stream << "CMyVektor{";
-    for (const auto &e : x) {
-      stream << e << ", ";
-    }
-    stream << "}";
-    return stream;
-  }
-
-  /** Helper structure to collect and print iteration data. */
+  /**
+   * Helper structure to collect and print iteration data.
+   *
+   * It is initialized using an N-dimensional point `current`, an N-dimensional
+   * function `funktion`, and a step size `step_size`.
+   *
+   * `funktion(current)` will be calculated as well as the gradient at
+   * position `current` (direction of steepest descent).
+   *
+   * The next point `next` is calculated by following the direction of
+   * steepest descent in the vector field `funktion` and the test point `test`
+   * is calculated doing the same thing at double step size.
+   */
   struct IterationData {
   private:
+    /**
+     * Associated vector field. An N-dimensional function that assigns an
+     * unambiguous value to a given N-dimensional vector.
+     */
     double (*funktion)(CMyVektor x);
 
   public:
-
     /** Current iteration index. */
     std::size_t index;
 
@@ -118,8 +138,7 @@ public:
 
       /* Initialize test point following the gradient with double step size and
        * its value. */
-      const auto test_point =
-          current_point + step_size * 2.0 * current_grad;
+      const auto test_point = current_point + step_size * 2.0 * current_grad;
       test = {test_point, funktion(test_point)};
     }
 
@@ -132,7 +151,7 @@ public:
     /** Returns 'true' if test iteration step size should be used or 'false' if
      * the current should be used. */
     constexpr auto use_test() const -> bool {
-        return test.second > next.second;
+      return test.second > next.second;
     }
 
     friend std::ostream &operator<<(std::ostream &stream,
@@ -145,6 +164,7 @@ public:
       stream << "\t||grad f(x)|| " << x.current_grad.norm() << "\n";
       stream << "\tx_neu         " << x.next.first << "\n";
       stream << "\tf(x_neu)      " << x.next.second << "\n\n";
+      /* TODO: this is printed everytime, not just when it is used. */
       stream << "Test mit doppelter Schrittweite\n";
       stream << "\tx_test        " << x.test.first << "\n";
       stream << "\tf(x_test)     " << x.test.second << "\n\n";
@@ -152,14 +172,27 @@ public:
     }
   };
 
+public:
+  /* Inherit all constructors of 'std::vector' */
+  using std::array<double, N>::operator[];
+
+  friend std::ostream &operator<<(std::ostream &stream, const CMyVektor<N> &x) {
+    stream << "CMyVektor{";
+    for (const auto &e : x) {
+      stream << e << ", ";
+    }
+    stream << "}";
+    return stream;
+  }
+
   /** Task 3. Recusively maximize `funktion` by gradient descent.
    *
    * @note Implemented in header file because it is templated.
    */
   static auto gradient_descent(const CMyVektor &current,
-                                    double (*funktion)(CMyVektor x),
-                                    double step_size = 1.0,
-                                    std::size_t iteration_index = 0) -> CMyVektor {
+                               double (*funktion)(CMyVektor x),
+                               double step_size = 1.0,
+                               std::size_t iteration_index = 0) -> CMyVektor {
 
     /* Maximum recursion depth. */
     static constexpr std::size_t MAX_ITERATIONS = 25;
@@ -169,8 +202,8 @@ public:
     static constexpr double GRAD_LIMIT = 10.0e-5;
 
     /* initialize current iteration data */
-    auto iteration =
-        IterationData(current, funktion, step_size, iteration_index);
+    const IterationData iteration = {current, funktion, step_size,
+                                     iteration_index};
 
     /* stop processing if max recursion depth reached */
     if (iteration.index == MAX_ITERATIONS) {

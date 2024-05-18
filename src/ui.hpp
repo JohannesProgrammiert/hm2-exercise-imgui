@@ -17,7 +17,7 @@
 #include <imgui_impl_opengl3.h>
 #include <implot.h>
 
-/** Handle user interface handle */
+/** User interface handle */
 class GuiHandle {
 public:
   /** Handle constructor. Will initialize the UI and throw exceptions on
@@ -30,8 +30,12 @@ public:
   /**
    * Draw one frame of user interface and process input events.
    *
+   * @tparam RES Heatmap resolution.
+   * @tparam TICK_SIZE Axis tick size.
+   *
    * @returns 'true' if the user closed the UI window. */
-  template <std::size_t RES> auto Update(const double heatmap[RES][RES]) -> bool {
+  template <std::size_t RES, double TICK_SIZE>
+  auto Update(const double heatmap[RES][RES], const double start[2]) -> bool {
     // Poll and handle events (inputs, window resize, etc.)
     glfwPollEvents();
 
@@ -39,7 +43,6 @@ public:
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    static constexpr int Y_DATA[4] = {1, 5, 6, 22};
     double max = -INFINITY;
     double min = INFINITY;
     for (std::size_t i = 0; i < RES * RES; i++) {
@@ -53,9 +56,8 @@ public:
 
     ImPlot::PushColormap(ImPlotColormap_Viridis);
     if (ImPlot::BeginPlot("Test")) {
-      // ImPlot::PlotLine("Line", Y_DATA, 4);
       ImPlot::PlotHeatmap("heat", heatmap[0], RES, RES, min, max, "",
-                          ImPlotPoint(0, 0), ImPlotPoint(1, 1),
+                          ImPlotPoint(start[0], start[1]), ImPlotPoint(start[0] + RES * TICK_SIZE, start[1] + RES * TICK_SIZE),
                           ImPlotHeatmapFlags_None);
       ImPlot::EndPlot();
     }
