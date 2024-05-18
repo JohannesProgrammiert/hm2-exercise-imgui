@@ -57,6 +57,30 @@ GuiHandle::GuiHandle() {
   if (!ImGui_ImplOpenGL3_Init(glsl_version)) {
     throw std::runtime_error("Could not initialize ImGui OpenGL backend");
   }
+
+  /* Populate heatmap with 2D function values. */
+  for (std::size_t y = 0; y < RESOLUTION; y++) {
+    for (std::size_t x = 0; x < RESOLUTION; x++) {
+      const double x_coord = START[0] + static_cast<double>(x) * TICK_SIZE;
+      const double y_coord = START[1] + static_cast<double>(y) * TICK_SIZE;
+      /* No idea why but y must be inverted. For the heatmap to match the
+       * scatter plot. */
+      heatmap[y][x] = functions::f(CMyVektor<2>({x_coord, -y_coord}));
+    }
+  }
+  /* Find maximum and minimum value in heatmap. Used as boundaries for color
+   * mapping. */
+  for (std::size_t i = 0; i < RESOLUTION * RESOLUTION; i++) {
+    /* A bit weird but we know 2-dimensional arrays are in contiguous memory. We
+     * can access all elements by the second index only. */
+    const double &current = heatmap[0][i];
+    if (current > heatmap_max) {
+      heatmap_max = current;
+    }
+    if (current < heatmap_min) {
+      heatmap_min = current;
+    }
+  }
 }
 
 GuiHandle::~GuiHandle() {
@@ -77,7 +101,11 @@ auto GuiHandle::Update() -> bool {
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  /* Finite state machine. */
+  /* Finite state machine.
+   *
+   * Actually, this could be done cleaner by moving all code into the
+   * switch-case statement.
+   */
   CalcState next_state = this->state;
 
   switch (this->state) {
@@ -99,38 +127,40 @@ auto GuiHandle::Update() -> bool {
     }
     break;
   }
-  static constexpr CMyVektor<2> START_F{0.2, -2.1};
-  static CMyVektor<2> start = START_F;
+
   if (this->state != CalcState::Init) {
     ImGui::BeginDisabled();
   }
-  ImGui::DragScalar("Start x", ImGuiDataType_Double, &start[0]);
-  ImGui::DragScalar("Start y", ImGuiDataType_Double, &start[1]);
+
+  ImGui::DragScalar("Start x", ImGuiDataType_Double, &start[0], 0.1);
+  ImGui::DragScalar("Start y", ImGuiDataType_Double, &start[1], 0.1);
+
   if (this->state != CalcState::Init) {
     ImGui::EndDisabled();
   }
 
-  static uint8_t iteration = 0;
   if (this->state == CalcState::Init) {
     iteration = 0;
   }
+
   if (this->state != CalcState::MidCalculation) {
     ImGui::BeginDisabled();
   }
+
   static constexpr uint8_t IT_MIN = 0;
   static constexpr uint8_t IT_MAX = 24;
   ImGui::SliderScalar("Iteration step", ImGuiDataType_U8, &iteration, &IT_MIN,
                       &IT_MAX);
+
   if (this->state != CalcState::MidCalculation) {
     ImGui::EndDisabled();
   }
-  static constexpr double INIT_STEP_SIZE_F = 1.0;
-  static IterationData<2> iteration_data_init =
-      IterationData<2>::AtPoint(start, funktion_f, INIT_STEP_SIZE_F, 0);
+
   if (this->state == CalcState::Init) {
     iteration_data_init =
-        IterationData<2>::AtPoint(start, funktion_f, INIT_STEP_SIZE_F, 0);
+        IterationData<2>::AtPoint(start, functions::f, INIT_STEP_SIZE_F, 0);
   }
+
   IterationData<2> iteration_data = iteration_data_init;
   if (this->state == CalcState::MidCalculation) {
     for (std::size_t i = 0; i < iteration; i++) {
@@ -150,48 +180,7 @@ auto GuiHandle::Update() -> bool {
     ImGui::Text("%s", str.c_str());
   }
 
-  /* -- Make 2D visualization of funktion_f -- */
-
-  /* Heatmap subdivisions per dimension.. */
-  static constexpr std::size_t RESOLUTION = 64;
-
-  /* Heatmap size in x- and y-direction. */
-  static constexpr double HEATMAP_SIZE = 4.0;
-
-  /* Axis tick step size. */
-  static constexpr double TICK_SIZE =
-      HEATMAP_SIZE / static_cast<double>(RESOLUTION);
-
-  /* Start corner of heatmap. */
-  static constexpr double START[2] = {-HEATMAP_SIZE / 2.0, -HEATMAP_SIZE / 2.0};
-
-  /* Populate C array type. Actually, this is only needed once. */
-  double values[RESOLUTION][RESOLUTION];
-  for (std::size_t y = 0; y < RESOLUTION; y++) {
-    for (std::size_t x = 0; x < RESOLUTION; x++) {
-      const double x_coord = START[0] + static_cast<double>(x) * TICK_SIZE;
-      const double y_coord = START[1] + static_cast<double>(y) * TICK_SIZE;
-      /* No idea why but y must be inverted. For the heatmap to match the
-       * scatter plot. */
-      values[y][x] = funktion_f(CMyVektor<2>({x_coord, -y_coord}));
-    }
-  }
-
-  /* Find maximum and minimum value in heatmap. Used as boundaries for color
-   * mapping. */
-  double max = -INFINITY;
-  double min = INFINITY;
-  for (std::size_t i = 0; i < RESOLUTION * RESOLUTION; i++) {
-    /* A bit weird but we know 2-dimensional arrays are in contiguous memory. We
-     * can access all elements by the second index only. */
-    const double &current = values[0][i];
-    if (current > max) {
-      max = current;
-    }
-    if (current < min) {
-      min = current;
-    }
-  }
+  /* -- Make 2D visualization of functions::f -- */
 
   /* Populate plot points as C array types. */
   const double opt_x[1] = {iteration_data.current.vector[0]};
@@ -204,8 +193,8 @@ auto GuiHandle::Update() -> bool {
   ImPlot::PushColormap(ImPlotColormap_Viridis);
   if (ImPlot::BeginPlot("Heatmap")) {
     ImPlot::PlotHeatmap(
-        "f(x)", values[0], RESOLUTION, RESOLUTION, min, max, "%f",
-        ImPlotPoint(START[0], START[1]),
+        "f(x)", heatmap[0], RESOLUTION, RESOLUTION, heatmap_min, heatmap_max,
+        "", ImPlotPoint(START[0], START[1]),
         ImPlotPoint(START[0] + HEATMAP_SIZE, START[1] + HEATMAP_SIZE),
         ImPlotHeatmapFlags_None);
     ImPlot::PlotScatter("Optimum", opt_x, opt_y, 1);

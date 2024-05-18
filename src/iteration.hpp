@@ -1,10 +1,28 @@
 #ifndef ITERATION_H_
 #define ITERATION_H_
+/**
+ * @file iteration.hpp
+ *
+ * @brief Numeric optimization via gradient descent.
+ *
+ * The struct `IterationData` holds all necessary information of one iteration
+ * of the gradient descent optimization method.
+ *
+ * It may be used to iteratively find
+ * the maximum of a function.
+ *
+ * @author Johannes Schiffer
+ * @date 03-05-2024
+ */
 #include "cmyvektor.hpp"
 #include <cstddef>
 template <std::size_t N> using FunctionPtr = double (*)(const CMyVektor<N> &x);
 
-/** A point of an N-dimensional function. */
+/**
+ * A point of an N-dimensional function.
+ *
+ * @tparam N Dimension.
+ */
 template <std::size_t N> struct Point {
 
   /** Vector that defines the location in the vector field/preimage. */
@@ -23,10 +41,11 @@ template <std::size_t N> struct Point {
   constexpr Point(CMyVektor<N> vector, FunctionPtr<N> funktion)
       : vector(vector), value(funktion(vector)){};
 
+  /* default constructor */
   constexpr Point() = default;
 };
 
-/** Stream operatior of 'Point'. */
+/** Stream operator of 'Point'. */
 template <std::size_t N>
 std::ostream &operator<<(std::ostream &stream, const Point<N> &x) {
   stream << "Point{vector: " << x.vector << ", value: " << x.value << "}";
@@ -46,16 +65,11 @@ std::ostream &operator<<(std::ostream &stream, const Point<N> &x) {
  * steepest descent in the vector field `funktion` and the test point `test`
  * is calculated doing the same thing at double step size.
  *
- * @tparam N Dimension of function preimage.
+ * @tparam N Dimension of function pre-image.
  */
 template <std::size_t N> struct IterationData {
 public:
   constexpr IterationData() = default;
-  // constexpr IterationData(FunctionPtr<N> function, double step_size,
-  //                         std::size_t iteration_index)
-  //     : index(iteration_index), step_size(step_size), funktion(funktion),
-  //       current({}), current_grad({}),
-  //       next({}), test({}) {}
   /**
    * Constructor to calculate gradient descent iteration data at optimization
    * point.
@@ -129,18 +143,18 @@ public:
   }
   /* Move constructor. */
   constexpr IterationData(const IterationData &&other)
-      : funktion(other.funktion), step_size(other.step_size), index(other.index),
-        current(other.current), current_grad(other.current_grad),
-        next(other.next), test(other.test) {}
+      : funktion(other.funktion), step_size(other.step_size),
+        index(other.index), current(other.current),
+        current_grad(other.current_grad), next(other.next), test(other.test) {}
   /* Move assignment operator. */
-  IterationData<N>& operator=(IterationData<N>&& other);
+  IterationData<N> &operator=(IterationData<N> &&other);
   /* Copy constructor. */
   constexpr IterationData(const IterationData &other)
-      : funktion(other.funktion), step_size(other.step_size), index(other.index),
-        current(other.current), current_grad(other.current_grad),
-        next(other.next), test(other.test) {}
+      : funktion(other.funktion), step_size(other.step_size),
+        index(other.index), current(other.current),
+        current_grad(other.current_grad), next(other.next), test(other.test) {}
   /* Copy assignment operator. */
-  IterationData<N>& operator=(IterationData<N>& other);
+  IterationData<N> &operator=(IterationData<N> &other);
 
 private:
   /**
@@ -235,8 +249,9 @@ std::ostream &operator<<(std::ostream &stream, const IterationData<N> &x) {
 
 /** Task 3. Maximize `funktion` by numeric gradient descent. */
 template <std::size_t N>
-CMyVektor<N> gradient_descent(const CMyVektor<N> &start_point, FunctionPtr<N> funktion,
-                      double start_step_size = 1.0) {
+CMyVektor<N> gradient_descent(const CMyVektor<N> &start_point,
+                              FunctionPtr<N> funktion,
+                              double start_step_size = 1.0) {
 
   /* initialize current iteration data */
   auto iteration =
