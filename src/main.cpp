@@ -1,3 +1,11 @@
+/**
+ * @file main.cpp
+ *
+ * @brief Main function. The first part solves the task in terminal only, the second path starts the UI.
+ *
+ * @author Johannes Schiffer
+ * @date 03-05-2024
+*/
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #define GL_SILENCE_DEPRECATION

@@ -1,5 +1,15 @@
 #ifndef FUNCTIONS_H_
 #define FUNCTIONS_H_
+/**
+ * @file functions.hpp
+ *
+ * @brief Math function definitions from exercises.
+ *
+ * Each function maps an N-dimensional vector to a 1-dimensional value.
+ *
+ * @author Johannes Schiffer
+ * @date 03-05-2024
+ */
 #include "cmyvektor.hpp"
 #include <cmath>
 
@@ -19,6 +29,6 @@ static inline auto g(const CMyVektor<3> &x) -> double {
   return -(2.0 * std::pow(x1, 2) - 2.0 * x1 * x2 + std::pow(x2, 2) +
            std::pow(x3, 2) - 2.0 * x1 - 4.0 * x3);
 }
-} // namespace function
+} // namespace functions
 
 #endif // FUNCTIONS_H_

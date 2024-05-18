@@ -68,7 +68,6 @@ std::ostream &operator<<(std::ostream &stream, const Point<N> &x) {
  * @tparam N Dimension of function pre-image.
  */
 template <std::size_t N> struct IterationData {
-public:
   constexpr IterationData() = default;
   /**
    * Constructor to calculate gradient descent iteration data at optimization
@@ -80,14 +79,14 @@ public:
    * @param iteration_index Iteration index. Should increment with each
    * successive iteration.
    */
-  static IterationData AtPoint(const CMyVektor<N> &current_point,
+  [[nodiscard]] static IterationData AtPoint(const CMyVektor<N> &current_point,
                                FunctionPtr<N> function, double step_size,
                                std::size_t iteration_index);
 
   /**
    * Alternative constructor to construct next iteration from the previous one.
    */
-  static IterationData Next(const IterationData &previous);
+  [[nodiscard]] static IterationData Next(const IterationData &previous);
 
   /** Current iteration index. */
   std::size_t index;
@@ -119,13 +118,13 @@ public:
 
   /** Returns 'true' if next iteration step size should be used or 'false'
    * if the current should be used. */
-  inline constexpr auto use_next() const -> bool {
+  [[nodiscard]] inline constexpr auto use_next() const -> bool {
     return next.value > current.value;
   }
 
   /** Returns 'true' if test iteration step size should be used or 'false'
    * if the current should be used. */
-  inline constexpr auto use_test() const -> bool {
+  [[nodiscard]] inline constexpr auto use_test() const -> bool {
     return use_next() && (test.value > next.value);
   }
 
@@ -138,7 +137,7 @@ public:
 
   /** Returns 'true' if the optimum has been found. It is then the 'current'
    * iteration. */
-  inline constexpr auto done() const -> bool {
+  [[nodiscard]] inline constexpr auto done() const -> bool {
     return index == MAX_ITERATIONS || current_grad.norm() < GRAD_LIMIT;
   }
   /* Move constructor. */

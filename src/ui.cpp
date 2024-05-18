@@ -1,3 +1,11 @@
+/**
+ * @file ui.cpp
+ *
+ * @brief Implementation of UI-related stuff.
+ *
+ * @author Johannes Schiffer
+ * @date 03-05-2024
+ */
 #include "ui.hpp"
 #include "cmyvektor.hpp"
 #include "functions.hpp"

@@ -7,6 +7,9 @@
  *
  * Draws stuff to the screen and reacts to user input.
  * Uses the ImGui library with GLFW (OpenGL3) as graphics card interface.
+ *
+ * @author Johannes Schiffer
+ * @date 03-05-2024
  */
 
 #include "functions.hpp"
@@ -39,17 +42,18 @@ private:
    * State of steepest-descent calculation.
    */
   enum class CalcState {
-    /* Init-state: Customization of initialization value possible. */
+    /** Init-state: Customization of initialization value possible. */
     Init,
-    /* Mid-calculation: Customization not possible. */
+    /** Calculating: Customization of initialization value not possible. */
     MidCalculation,
-    /* Done: Customization not possible, calculation is done. */
+    /** Calculation is done. Show result until the user clicks on 'reset'. */
     Done,
   };
 
   /** GLFW window handle. Initialized during object construction. */
   GLFWwindow *glfw_window{};
 
+  /** Current state of finite state machine. */
   CalcState state{CalcState::Init};
 
   /** GLFW error callback. Not thread-safe. */
@@ -66,6 +70,7 @@ private:
   /** First gradient descent iteration with index zero. */
   IterationData<2> iteration_data_init{
       IterationData<2>::AtPoint(start, functions::f, INIT_STEP_SIZE_F, 0)};
+
   /** Heatmap subdivisions per dimension. */
   static constexpr std::size_t RESOLUTION = 64;
 
